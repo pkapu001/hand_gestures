@@ -13,8 +13,6 @@ import cv2
 from pynput.mouse import Button, Controller
 import time
 from time import sleep
-from hand_deviation_calc import *
-
 mouse= Controller()
 
 model = load_model('gesture_recog_81.h5')
@@ -38,21 +36,32 @@ rt = 0
 
 while True:
     _, frame = cam.read()
-    hsv_frame = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
-    corner = hsv_frame[50:-100 ,350:]
-    corner0 = frame[50:-100 ,350:]
-    lower = np.array([0, 40, 50],dtype = "uint8")
-    upper = np.array([30, 255, 255],dtype = "uint8")
+    hsv_frame = cv2.cvtColor(frame , cv2.COLOR_BGR2HSV)
+    corner = hsv_frame[53:-100 ,300:]
+    corner0 = frame[53:-100 ,300:]
+
+    corner = hsv_frame[53:-100, 300:]
+    lower = np.array([0, 40, 50], dtype="uint8")
+    upper = np.array([70, 255, 255], dtype="uint8")
+
+    lower_p = np.array([165, 19, 190], dtype="uint8")
+    upper_p = np.array([179, 70, 255], dtype="uint8")
+
+    # cv2.imshow('hsv',hsv_frame)
     mask = cv2.inRange(corner, lower, upper)
-    th = cv2.GaussianBlur(mask, (21, 21), 41)
+    mask2 = cv2.inRange(corner, lower_p, upper_p)
+    mask = cv2.bitwise_or(mask, mask2)
+
+    th = cv2.GaussianBlur(mask, (9, 9), 9)
+    _, th = cv2.threshold(th, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     cv2.rectangle(frame, (350, 50), (640, 380), (225, 255, 0), 2)
-    temp = cv2.resize(mask,(128,128))
+    temp = cv2.resize(th,(128,128))
     temp = np.expand_dims(temp, axis = 0)
     temp = np.expand_dims(temp, axis = -1)
     result = model.predict_proba(temp)
     # print(list(map(perc , result)))
     gesture = classes[np.argmax(result)]
-
+    center = [int(len(mask[0]) / 2), int(len(mask)/ 2)]
     if gesture == 'rock' and not ispressed:
         mouse.press(Button.left)
         ispressed = True
@@ -77,7 +86,6 @@ while True:
         # f= np.asarray(mask)
         # th = cv2.cvtColor(th, cv2.COLOR_HSV2BGR)
         # th = cv2.cvtColor(th, cv2.COLOR_BGR2GRAY)
-        # _, th = cv2.threshold(th,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         # th = cv2.pyrMeanShiftFiltering(mask,51,91)
         contours,_ = cv2.findContours(th, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -87,28 +95,26 @@ while True:
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
         cv2.drawContours(corner0, contours, -1, (0, 255, 0), 3)
-        cv2.circle(corner0, (cX, cY), 7, (255, 255, 255), -1)
+        th = cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
+        cv2.circle(th, (cX, cY), 7, (0, 0, 255), -1)
         # print(f'({cX},{cY})')
         handloc = [cX,cY]
-        center = [(len(mask[0])/2),(len(mask)/2)+60]
+        # center = [(len(mask[0])/2),(len(mask)/2)]
         deviation = list(map(lambda x,y: x-y,center,handloc))
         deviation[1] = -deviation[1]
         print(f'{handloc} - {center} = {deviation}')
         mouse.move(deviation[0]/8,deviation[1]/5)
         sleep(0.005)
 
-        # print(len(contours))
-
-
-        # fx ,fy = f.sum(axis=0), f.sum(axis=1)
-        # x, _ = find_weighted_center(fx)
-        # y, _= find_weighted_center(fy)
-        # cv2.circle(mask, (x, y), 10, (150, 200, 255), 3)
-        # print(f'({x},{y})')
-    cv2.putText(mask, f'{gesture}', (50, 50), font , 1, (173,0,132),2, cv2.LINE_AA)
-    cv2.imshow('hand', mask)
+    try:
+        th = cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
+    except:
+        pass
+    cv2.putText(th, f'{gesture}', (50, 50), font, 1, (173, 0, 132), 2, cv2.LINE_AA)
+    cv2.circle(th,(center[0],center[1]),5,(255,255,0),2)
+    # cv2.imshow('hand', mask)
     cv2.imshow('original', frame)
-    cv2.imshow('blur', th)
+    cv2.imshow('hand', th)
     # cv2.imshow('corner', corner0)
     k = cv2.waitKey(1)& 0xff
     if k ==27:
