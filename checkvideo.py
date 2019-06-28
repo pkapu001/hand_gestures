@@ -28,12 +28,12 @@ while True:
     mask = cv2.inRange(corner,lower, upper)
     mask2 = cv2.inRange(corner, lower_p, upper_p)
     mask = cv2.bitwise_or(mask , mask2)
-    th = cv2.GaussianBlur(mask, (9, 9), 11)
+    th = cv2.GaussianBlur(mask, (9, 9), 9)
     _, th = cv2.threshold(th, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     bgr = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
     cv2.circle(bgr,(145,165),10,(255,255,0),3)
-    cv2.circle(corner0,(145,165),10,(255,255,0),3)
+    cv2.circle(corner0,(145,165),2,(255,255,0),1)
     cv2.imshow('hand1', bgr)
 
     cv2.imshow('full image', frame)
@@ -42,10 +42,12 @@ while True:
     key = cv2.waitKey(50)
     if key == 27:
         break
-    elif key == 0:
+    elif key == 32:
         print(corner[165][145])
         x= corner[165][145]
         data.append(x)
+    else :
+        pass
 
 if len(data)>2:
     data = np.asarray(data)
